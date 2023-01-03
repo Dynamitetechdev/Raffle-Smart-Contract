@@ -118,7 +118,7 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
         upkeepNeeded = (isOpen && timePassed && hasPlayers && hasBalance);
     }
 
-    function performUpkeep(bytes memory /* calldata*/) external override {
+    function performUpkeep(bytes calldata /* calldata*/) external override {
         (bool upkeepNeeded, ) = checkUpkeep("");
         if (!upkeepNeeded) {
             // we will also add some variable so that who ever is running into this bug will know whats happening
@@ -194,7 +194,7 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
         return s_raffleState;
     }
 
-    function getPlayers() public view returns (uint256) {
+    function getPlayer() public view returns (uint256) {
         return s_players.length;
     }
 
@@ -208,5 +208,9 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
 
     function getRequestConfirmations() public pure returns (uint256) {
         return REQUEST_CONFIRMATIONS;
+    }
+
+    function getInterval() public view returns(uint256){
+        return i_interval;
     }
 }

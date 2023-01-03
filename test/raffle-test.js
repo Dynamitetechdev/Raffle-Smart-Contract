@@ -1,24 +1,98 @@
-const { expect } = require("chai");
-const { getNamedAccounts, deployments, ethers } = require("hardhat");
+const { expect, assert } = require("chai");
+const { getNamedAccounts, deployments, ethers, network } = require("hardhat");
+const { networkConfig } = require("../helper-config");
+const chainId = network.config.chainId;
 
-describe("Raffle Contract", async () => {
-  const eth = ethers.utils.parseEther("0.1");
-  let contract, deployer;
-  beforeEach(async () => {
-    deployer = (await getNamedAccounts()).deployer;
-    await deployments.fixture(["all"]);
-    contract = await ethers.getContractAt("Raffle", deployer);
-    console.log(contract.address);
-  });
+chainId != 31337
+  ? describe.skip
+  : describe("Test Raffle", () => {
+      let deployer, raffleContract, interval;
+      const entranceFee = ethers.utils.parseEther("0.1");
+      beforeEach(async () => {
+        deployer = (await getNamedAccounts()).deployer;
+        await deployments.fixture(["all"]);
+        raffleContract = await ethers.getContract("Raffle", deployer);
+        interval = await raffleContract.getInterval();
+        console.log(raffleContract.address);
+      });
+      describe("constructor", () => {
+        // it("the _vrfCoordinator addresss should be the mock address, since we are not on testnet", async () => {});
+        it("should start at an OPEN state", async () => {
+          const txResponse = await raffleContract.getRaffleState();
+          await expect(txResponse.toString()).to.equal("0");
+        });
+        it("should give the specified entranceFee", async () => {
+          const txResponse = await raffleContract.getEntranceFee();
+          const specifiedEntranceFee = networkConfig[chainId]["entranceFee"];
+          expect(txResponse).to.equal(specifiedEntranceFee.toString());
+        });
 
-  describe("Pay", async () => {
-    it("should pay and get the address that paid", async () => {
-      await contract.pay({ value: eth });
-      const bal = await ethers.provider.getBalance(contract.address);
-      console.log(bal.toString());
-      const paidPlayer = await contract.getPlayers(0);
-      //   console.log(`Paid Player: ${paidPlayer}`);
-      expect(paidPlayer).to.equal(deployer);
+        it("should set interval correctly", async () => {
+          const givenInterval = networkConfig[chainId]["interval"];
+          expect(interval).to.equal(givenInterval);
+        });
+      });
+
+      describe("Pay", () => {
+        it("should revert if there are not paying enough entranceFee", async () => {
+          await expect(raffleContract.pay()).to.be.revertedWith(
+            "Raffle_NotEnoughEth"
+          );
+        });
+
+        it("should check if pay emit any event", async () => {
+          const txResponse = await raffleContract.pay({ value: entranceFee });
+          await expect(txResponse).to.emit(raffleContract, "raffleEnter");
+        });
+        it("should pay", async () => {
+          const txResponse = await raffleContract.pay({
+            value: entranceFee,
+          });
+          const txReceipt = await txResponse.wait(1);
+          const getPlayer = await raffleContract.getPlayers(0);
+          await expect(getPlayer).to.equal(deployer);
+        });
+
+        // it("should not allow anyone in if the raffle state is in pending", async () => {
+        //   //1. we fund, meaning we are trying to enter raffle
+        //   //2. we will make the checkUpkeep upKeepNeeded all true, so we can run the performUpKeep in other to request a random winner and during this time the raffle state will be pending.
+
+        //   await raffleContract.pay({ value: entranceFee });
+        //   await network.provider.send("evm_increaseTime", [
+        //     interval.toString() + 1,
+        //   ]);
+        //   await network.provider.send("evm_mine", []);
+
+        //   //we are acting like the chainLink Keeper here we will can the perform upKeep, and during this call the raffle state should be calculating and should not allow anyone enter
+        //   await raffleContract.performUpkeep([]);
+
+        //   await expect(
+        //     raffleContract.pay({ value: entranceFee })
+        //   ).to.be.revertedWith("Raffle_upKeepNotNeeded");
+        // });
+      });
+
+      // describe("checkUpkeep", () => {
+      //   it("should return false if there no payment yet", async () => {
+      //     await network.provider.send("evm_increaseTime", [
+      //       interval.toString() + 1,
+      //     ]);
+      //     await network.provider.send("evm_mine", []);
+
+      //     const { upkeepNeeded } = await raffleContract.callStatic.checkUpkeep(
+      //       []
+      //     );
+      //assert will only run when it parameter is true.
+      //     assert(!upkeepNeeded);
+      //   });
+      // });
+
+      describe("performUpKeep", () => {
+        it("should revert if checkUpkeep is false", async () => {
+          await raffleContract.pay({ value: entranceFee });
+          await expect(raffleContract.performUpkeep("0x")).to.be.revertedWith(
+            "Raffle_upKeepNotNeeded"
+          );
+        });
+      });
     });
-  });
-});

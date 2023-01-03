@@ -12,10 +12,8 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 
   if (chainId == 31337) {
     // my new way of deploying now
-    const mockVrfCoordinator = await deployments.get("VRFCoordinatorV2Mock");
-    const mockVrfCoordinatorContract = await ethers.getContractAt(
-      mockVrfCoordinator.abi,
-      mockVrfCoordinator.address
+    const mockVrfCoordinatorContract = await ethers.getContract(
+      "VRFCoordinatorV2Mock"
     );
     vrfCoordinatorAddress = mockVrfCoordinatorContract.address;
 

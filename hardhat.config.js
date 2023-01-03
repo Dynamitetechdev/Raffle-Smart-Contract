@@ -1,9 +1,9 @@
-require("@nomicfoundation/hardhat-toolbox");
+require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-etherscan");
 require("hardhat-deploy");
 require("solidity-coverage");
 require("hardhat-gas-reporter");
-require("hardhat-contract-sizer"); // new
+require("hardhat-contract-sizer");
 require("dotenv").config();
 /** @type import('hardhat/config').HardhatUserConfig */
 
@@ -33,5 +33,13 @@ module.exports = {
       default: 1,
       5: 1,
     },
+  },
+  gasReporter: {
+    enabled: false,
+    noColors: true,
+    outputFile: "gas-reporter.txt",
+    currency: "USD",
+    // coinmarketcap: "d4720ed6-4d46-4490-9a1c-c2b4539b3b5e",
+    token: "ETH",
   },
 };
