@@ -59,33 +59,32 @@ chainId != 31337
 
         //   await raffleContract.pay({ value: entranceFee });
         //   await network.provider.send("evm_increaseTime", [
-        //     interval.toString() + 1,
+        //     interval.toNumber() + 1,
         //   ]);
         //   await network.provider.send("evm_mine", []);
 
         //   //we are acting like the chainLink Keeper here we will can the perform upKeep, and during this call the raffle state should be calculating and should not allow anyone enter
-        //   await raffleContract.performUpkeep([]);
+        //   await raffleContract.performUpkeep("0x");
 
-        //   await expect(
-        //     raffleContract.pay({ value: entranceFee })
-        //   ).to.be.revertedWith("Raffle_upKeepNotNeeded");
+        //   const txResponse = await raffleContract.pay({ value: entranceFee });
+        //   await expect(txResponse).to.be.reverted();
         // });
       });
 
-      // describe("checkUpkeep", () => {
-      //   it("should return false if there no payment yet", async () => {
-      //     await network.provider.send("evm_increaseTime", [
-      //       interval.toString() + 1,
-      //     ]);
-      //     await network.provider.send("evm_mine", []);
+      describe("checkUpkeep", () => {
+        it("should return false if there no payment yet", async () => {
+          await network.provider.send("evm_increaseTime", [
+            interval.toNumber() + 1,
+          ]);
+          await network.provider.request({ method: "evm_mine", params: [] });
 
-      //     const { upkeepNeeded } = await raffleContract.callStatic.checkUpkeep(
-      //       []
-      //     );
-      //assert will only run when it parameter is true.
-      //     assert(!upkeepNeeded);
-      //   });
-      // });
+          const { upkeepNeeded } = await raffleContract.callStatic.checkUpkeep(
+            "0x"
+          );
+          // assert will only run when it parameter is true.
+          assert(!upkeepNeeded);
+        });
+      });
 
       describe("performUpKeep", () => {
         it("should revert if checkUpkeep is false", async () => {
