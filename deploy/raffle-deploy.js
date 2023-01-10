@@ -6,13 +6,13 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
   const { deployer } = await getNamedAccounts();
   const { deploy, log } = deployments;
   const chainId = network.config.chainId;
-  let vrfCoordinatorAddress, subId;
+  let mockVrfCoordinatorContract, vrfCoordinatorAddress, subId;
   const SUB_FUND_AMOUNT = ethers.utils.parseEther("2");
   console.log("Deploying Contract....");
 
   if (chainId == 31337) {
     // my new way of deploying now
-    const mockVrfCoordinatorContract = await ethers.getContract(
+    mockVrfCoordinatorContract = await ethers.getContract(
       "VRFCoordinatorV2Mock"
     );
     vrfCoordinatorAddress = mockVrfCoordinatorContract.address;
@@ -51,6 +51,14 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
     waitConfirmations: network.config.blockConfirmations || 1,
   });
   log("Deployed Raffle Contract");
+
+  // adding a customer to our VRF subscription
+  if (chainId == 31337) {
+    await mockVrfCoordinatorContract.addConsumer(
+      subId.toNumber(),
+      raffleContract.address
+    );
+  }
 
   log("verifing Raffle Contract.....");
   const ETHERSCAN_APIKEY = process.env.ETHERSCAN_APIKEY;

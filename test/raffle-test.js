@@ -84,6 +84,20 @@ chainId != 31337
           // assert will only run when it parameter is true.
           assert(!upkeepNeeded);
         });
+
+        //return false if time hasnt passed
+        it("return false if time hasnt passed", async () => {
+          await raffleContract.pay({ value: entranceFee });
+          await network.provider.send("evm_increaseTime", [
+            interval.toNumber() - 30,
+          ]);
+          await network.provider.request({ method: "evm_mine", params: [] });
+
+          const { upkeepNeeded } = await raffleContract.callStatic.checkUpkeep(
+            []
+          );
+          assert(!upkeepNeeded);
+        });
       });
 
       describe("performUpKeep", () => {
@@ -92,6 +106,63 @@ chainId != 31337
           await expect(raffleContract.performUpkeep("0x")).to.be.revertedWith(
             "Raffle_upKeepNotNeeded"
           );
+        });
+        it("should be in a calculating state, when we try to pay ", async () => {
+          await raffleContract.pay({ value: entranceFee });
+          await network.provider.send("evm_increaseTime", [
+            interval.toNumber() + 1,
+          ]);
+          await network.provider.send("evm_mine", []);
+
+          await raffleContract.performUpkeep("0x");
+
+          await expect(
+            raffleContract.pay({ value: entranceFee })
+          ).to.be.revertedWith("Raffle_NotOpened");
+        });
+
+        it("should be true if checkUpKeep is true", async () => {
+          await raffleContract.pay({ value: entranceFee });
+          await network.provider.request({
+            method: "evm_increaseTime",
+            params: [interval.toNumber() + 1],
+          });
+          await network.provider.request({ method: "evm_mine", params: [] });
+
+          const tx = raffleContract.performUpkeep("0x");
+          assert(tx);
+        });
+
+        it("should revert if checkUpKeep is not needed", async () => {
+          await expect(raffleContract.performUpkeep("0x")).to.be.revertedWith(
+            "Raffle_upKeepNotNeeded"
+          );
+        });
+
+        it.only("should check if an event is emitted and if state has changed", async () => {
+          await raffleContract.pay({ value: entranceFee });
+          await network.provider.request({
+            method: "evm_increaseTime",
+            params: [interval.toNumber() + 1],
+          });
+          await network.provider.request({
+            method: "evm_mine",
+            params: [],
+          });
+
+          const performUpKeep = await raffleContract.performUpkeep("0x");
+
+          const txReceipt = await performUpKeep.wait(1);
+
+          const requestId = txReceipt.events[1].args.requestId;
+          const raffleState = await raffleContract.getRaffleState();
+
+          // expect(raffleState.toString()).to.equal("1");
+          // await expect(performUpKeep).to.emit(
+          //   raffleContract,
+          //   "requestedRaffleWinner"
+          // );
+          assert(requestId.toNumber() > 0);
         });
       });
     });

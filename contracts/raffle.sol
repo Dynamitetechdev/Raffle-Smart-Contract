@@ -162,7 +162,10 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
         (bool success, ) = addressOfWinner.call{value: address(this).balance}(
             ""
         );
-
+        
+        if (!success) {
+            revert Raffle_transferFailed();
+        }
         s_raffleState = Raffle_state.OPEN;
 
         //resetting our array, after winner has been picked
@@ -170,9 +173,7 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
 
         // Resset the time stamp
         s_lastTimeStamp = block.timestamp;
-        if (!success) {
-            revert Raffle_transferFailed();
-        }
+
 
         //keeping track of recent event winner using event and emit
         emit winnerPicked(addressOfWinner);
