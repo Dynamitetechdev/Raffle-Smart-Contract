@@ -42,4 +42,8 @@ module.exports = {
     // coinmarketcap: "d4720ed6-4d46-4490-9a1c-c2b4539b3b5e",
     token: "ETH",
   },
+
+  mocha: {
+    timeout: 200000, //200 sec
+  },
 };
