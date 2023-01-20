@@ -171,82 +171,219 @@ chainId != 31337
         });
       });
 
-      describe("fulfilRandomNumber", () => {
+      // 1. before each make our check up keep true and after that we need more people to enter raffle
+      //2. get the blocktime current block timestamp so we can compare, when we call the fulfilRandomWords function
+      //3. call the performUpKeepFunction and access the emitted event of requestId, which we are using to make the mock fulfilrandom words function and we will also mock time using promise
+      //4. lastly we check to see if the fulfil random words function has worked
+      describe("fulfillRandomWords", () => {
         beforeEach(async () => {
-          // await raffleContract.pay({ value: entranceFee });
+          await raffleContract.pay({ value: entranceFee });
+
           await network.provider.send("evm_increaseTime", [
             interval.toNumber() + 1,
           ]);
-          await network.provider.send("evm_mine", []);
+          await network.provider.request({
+            method: "evm_mine",
+            params: [],
+          });
         });
 
-        it.only("Pick a winner, reset timestamp, send money to the winner", async () => {
-          const additionalPeople = 4;
+        it("should reset the array of players, timeStamp and payment by us only", async () => {
+          const startingTimeStamp = await raffleContract.getLastestTimeStamp();
+          const txResponse = await raffleContract.performUpkeep("0x");
+          const txReceipt = await txResponse.wait(1);
+          const requestId = txReceipt.events[1].args.requestId;
+
+          /* we need to params here
+          1. requestId - the id of the request to fulfil
+          2. address, the address of the customer to send the result to
+          */
+          const fulFucnc = await mockVRFcoordinatorContract.fulfillRandomWords(
+            requestId,
+            raffleContract.address
+          );
+          const endingTimeStamp = await raffleContract.getLastestTimeStamp();
+          expect(await raffleContract.getRaffleState()).to.equal(0);
+          expect(await raffleContract.getPlayer()).to.equal(0);
+          expect(fulFucnc).to.emit(raffleContract, "winnerPicked");
+          assert(endingTimeStamp > startingTimeStamp);
+        });
+
+        it("should transfer to the winner address. without a listerner", async () => {
           const accounts = await ethers.getSigners();
-          let playerIndex = 1;
-          for (let i = playerIndex; i <= additionalPeople + playerIndex; i++) {
-            // console.log(accounts[i].address);
-            const connectRaffleAccounts = await raffleContract.connect(
-              accounts[i]
-            );
-            await connectRaffleAccounts.pay({
-              value: ethers.utils.parseEther("1"),
-            });
+          const additionalPeople = 5;
+          const playerIndex = 1;
+          for (let i = playerIndex; i < additionalPeople + playerIndex; i++) {
+            console.log(i, accounts[i].address);
+            const multipleContract = await raffleContract.connect(accounts[i]);
+            await multipleContract.pay({ value: entranceFee });
           }
+
+          const lastTimeStamp = await raffleContract.getLastestTimeStamp();
+          const txResponse = await raffleContract.performUpkeep("0x");
+          const txReceipt = await txResponse.wait(1);
+          const requestId = txReceipt.events[1].args.requestId;
+          console.log(requestId.toString());
+
+          const winner = accounts[5];
+          const startingBalance = await winner.getBalance();
+          console.log(`Starting Balance: ${startingBalance}`);
+          await mockVRFcoordinatorContract.fulfillRandomWords(
+            requestId,
+            raffleContract.address
+          );
+
+          const endingBalance = await winner.getBalance();
+          console.log(`Ending Balance: ${endingBalance}`);
+
+          const recentWinner = await raffleContract.getRecentRaffleWinner();
+          console.log(`Recent winner: ${recentWinner}`);
+
+          expect(endingBalance).to.equal(
+            startingBalance
+              .add(entranceFee.mul(additionalPeople))
+              .add(entranceFee)
+          );
+
+          expect(await raffleContract.getRaffleState()).to.equal(0);
+        });
+
+        console.log("Waiting....");
+        it.only("should transfer to the winner address. with a listerner", async () => {
+          const accounts = await ethers.getSigners();
+          const additionalPeople = 5;
+          const playerIndex = 1;
+
+          for (let i = playerIndex; i < additionalPeople + playerIndex; i++) {
+            console.log(i, accounts[i].address);
+            const multipleContract = await raffleContract.connect(accounts[i]);
+            await multipleContract.pay({ value: entranceFee });
+          }
+
           const lastTimeStamp = await raffleContract.getLastestTimeStamp();
 
-          // performUpkeep has to be called before fulfilUpkeep can run
-          // but we want to have the event to be trigger but we run anything else. just emulating the testnet, because we might not know the exact time the fulfillrandomWords will be called. but in this instance we know. but we are emulating the time and only when the fulfilrandomword is called that is when we want to run the test
-
-          // assert the fulfilRandomword in Testnet. meaning we do have any time to emulate and we will work with listeners
-          // here we also dont want to wait forever is theres an issue with the listerner. so we wil have a mocha timeout for that
-          console.log("Waiting for listerner");
-
+          console.log("Waiting.....");
           await new Promise(async (resolve, reject) => {
             raffleContract.once("winnerPicked", async () => {
-              //once the winnerPicked Event is been emitted we want to do some stuffs
-              console.log("WinnerPicked Event Found!");
               try {
-                const raffleWinner =
-                  await raffleContract.getRecentRaffleWinner();
-                console.log(raffleWinner);
-                console.log(accounts[2].address);
-                const playerList = await raffleContract.getPlayer();
-                const raffleState = await raffleContract.getRaffleState();
-                const endingTimeStamp =
-                  await raffleContract.getLastestTimeStamp();
+                const endingBalance = await winner.getBalance();
+                console.log(`Ending Balance: ${endingBalance}`);
 
-                assert(raffleState == 0);
-                expect(playerList).to.equal(0);
-                assert(endingTimeStamp > lastTimeStamp);
+                const recentWinner =
+                  await raffleContract.getRecentRaffleWinner();
+                console.log(`Recent winner: ${recentWinner}`);
+
+                expect(endingBalance).to.equal(
+                  startingBalance
+                    .add(entranceFee.mul(additionalPeople))
+                    .add(entranceFee)
+                );
+                expect(await raffleContract.getRaffleState()).to.equal(0);
+                resolve();
               } catch (error) {
-                reject();
+                reject(error);
               }
-              resolve();
             });
 
             const txResponse = await raffleContract.performUpkeep("0x");
             const txReceipt = await txResponse.wait(1);
             const requestId = txReceipt.events[1].args.requestId;
 
+            const winner = accounts[5];
+            const startingBalance = await winner.getBalance();
+            console.log(`Starting Balance: ${startingBalance}`);
             await mockVRFcoordinatorContract.fulfillRandomWords(
               requestId,
               raffleContract.address
             );
           });
-
-          // assert the fulfilRandomword in localhost. meaning we dont have any time to emulate
-
-          // const balance = await ethers.provider.getBalance(
-          //   raffleContract.address
-          // );
-          // console.log(balance);
-          // const balanceStatus = balance > 0;
-
-          // const playerList = await raffleContract.getPlayer();
-
-          // assert(playerList == 0);
-          // assert(!balanceStatus);
         });
       });
+
+      // describe("fulfilRandomNumber", () => {
+      //   beforeEach(async () => {
+      //     await raffleContract.pay({ value: entranceFee });
+      //     await network.provider.send("evm_increaseTime", [
+      //       interval.toNumber() + 1,
+      //     ]);
+      //     await network.provider.send("evm_mine", []);
+      //   });
+
+      //   it.only("Pick a winner, reset timestamp, send money to the winner", async () => {
+      //     const additionalPeople = 4;
+      //     const accounts = await ethers.getSigners();
+      //     let playerIndex = 1;
+      //     for (let i = playerIndex; i <= additionalPeople + playerIndex; i++) {
+      //       // console.log(accounts[i].address);
+      //       const connectRaffleAccounts = await raffleContract.connect(
+      //         accounts[i]
+      //       );
+      //       await connectRaffleAccounts.pay({
+      //         value: ethers.utils.parseEther("1"),
+      //       });
+      //     }
+      //     const lastTimeStamp = await raffleContract.getLastestTimeStamp();
+
+      //     // performUpkeep has to be called before fulfilUpkeep can run
+      //     // but we want to have the event to be trigger but we run anything else. just emulating the testnet, because we might not know the exact time the fulfillrandomWords will be called. but in this instance we know. but we are emulating the time and only when the fulfilrandomword is called that is when we want to run the test
+
+      //     // assert the fulfilRandomword in Testnet. meaning we do have any time to emulate and we will work with listeners
+      //     // here we also dont want to wait forever is theres an issue with the listerner. so we wil have a mocha timeout for that
+      //     console.log("Waiting for listerner");
+
+      //     await new Promise(async (resolve, reject) => {
+      //       raffleContract.once("winnerPicked", async () => {
+      //         //once the winnerPicked Event is been emitted we want to do some stuffs
+      //         console.log("WinnerPicked Event Found!");
+      //         try {
+      //           const raffleWinner =
+      //             await raffleContract.getRecentRaffleWinner();
+      //           console.log(raffleWinner);
+      //           const playerList = await raffleContract.getPlayer();
+      //           const raffleState = await raffleContract.getRaffleState();
+      //           const endingTimeStamp =
+      //             await raffleContract.getLastestTimeStamp();
+
+      //           const winnerBalance = await accounts[2].getBalance();
+      //           assert(raffleState == 0);
+      //           expect(playerList).to.equal(0);
+      //           assert(endingTimeStamp > lastTimeStamp);
+
+      //           assert.equal(
+      //             winnerBalance.toString(),
+      //             startingBalance // startingBalance + ( (raffleEntranceFee * additionalEntrances) + raffleEntranceFee )
+      //               .add(entranceFee.mul(additionalPeople).add(entranceFee))
+      //               .toString()
+      //           );
+      //         } catch (error) {
+      //           reject();
+      //         }
+      //         resolve();
+      //       });
+
+      //       const txResponse = await raffleContract.performUpkeep("0x");
+      //       const txReceipt = await txResponse.wait(1);
+      //       const requestId = txReceipt.events[1].args.requestId;
+
+      //       const startingBalance = await accounts[2].getBalance();
+      //       await mockVRFcoordinatorContract.fulfillRandomWords(
+      //         requestId,
+      //         raffleContract.address
+      //       );
+      //     });
+
+      //     // assert the fulfilRandomword in localhost. meaning we dont have any time to emulate
+
+      //     // const balance = await ethers.provider.getBalance(
+      //     //   raffleContract.address
+      //     // );
+      //     // console.log(balance);
+      //     // const balanceStatus = balance > 0;
+
+      //     // const playerList = await raffleContract.getPlayer();
+
+      //     // assert(playerList == 0);
+      //     // assert(!balanceStatus);
+      //   });
+      // });
     });

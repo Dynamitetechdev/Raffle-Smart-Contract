@@ -132,7 +132,7 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
         //When we are requesting a random number, means all the player are complete other validation passed, so we want to be in a calculating state so that others cant jump in.
         s_raffleState = Raffle_state.CALCULATING;
 
-        // This RequestFunction Returns a uint256 uniqueId, that represent who is requesting this
+        // This RequestFunction Returns a uint256 uniqueId, that represent who is requesting this 
         request_id = i_VRFCoordinator.requestRandomWords(
             i_keyHash, //gaslane - represent the specified gas limit we are willing to pay for the Tx.
             i_subId, // represent subID that the consuming contract is registered.
