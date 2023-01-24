@@ -151,7 +151,6 @@ contract Raffle is VRFConsumerBaseV2, AutomationCompatibleInterface {
     ) internal override {
         // getting a random number within the length of our array and the randomWords from VRF using modulo
         uint256 indexOfWinner = randomWords[0] % s_players.length;
-
         //setting the indexOfWinner to the specified winner in the s_players array
         address payable addressOfWinner = s_players[indexOfWinner];
 

@@ -7,7 +7,7 @@ const networkConfig = {
     entranceFee: ethers.utils.parseEther("0.01"), // we want our enterance fee to be higher or based on the different chain we are on
     keyHash:
       "0x79d3d8832d904592c0bf9818b621522c988bb8b0c05cdc3b15aea1b6e8db0c15",
-    subId: "0", // we wll leave it at 0 for now
+    subId: "8922", // we wll leave it at 0 for now
     callbackGasLimit: "500000",
     interval: "30",
   },

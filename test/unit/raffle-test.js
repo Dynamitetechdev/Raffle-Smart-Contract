@@ -1,6 +1,6 @@
 const { expect, assert } = require("chai");
 const { getNamedAccounts, deployments, ethers, network } = require("hardhat");
-const { networkConfig } = require("../helper-config");
+const { networkConfig } = require("../../helper-config");
 const chainId = network.config.chainId;
 
 chainId != 31337
@@ -267,24 +267,21 @@ chainId != 31337
             raffleContract.once("winnerPicked", async () => {
               try {
                 const endingBalance = await winner.getBalance();
-                console.log(`Ending Balance: ${endingBalance}`);
-
-                const recentWinner =
-                  await raffleContract.getRecentRaffleWinner();
-                console.log(`Recent winner: ${recentWinner}`);
 
                 expect(endingBalance).to.equal(
                   startingBalance
                     .add(entranceFee.mul(additionalPeople))
                     .add(entranceFee)
                 );
+                expect(await raffleContract.getPlayer()).to.equal(0);
+
                 expect(await raffleContract.getRaffleState()).to.equal(0);
+
                 resolve();
               } catch (error) {
                 reject(error);
               }
             });
-
             const txResponse = await raffleContract.performUpkeep("0x");
             const txReceipt = await txResponse.wait(1);
             const requestId = txReceipt.events[1].args.requestId;

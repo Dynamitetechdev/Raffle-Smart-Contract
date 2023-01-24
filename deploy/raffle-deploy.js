@@ -52,7 +52,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
   });
   log("Deployed Raffle Contract");
 
-  // adding a customer to our VRF subscription
+  // adding a customer to our Mock VRF subscription
   if (chainId == 31337) {
     await mockVrfCoordinatorContract.addConsumer(
       subId.toNumber(),
