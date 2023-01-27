@@ -9,6 +9,8 @@ module.exports = async () => {
     console.log("Updating Frontend....");
     await updateFrontend();
     await updateABI();
+
+    console.log("update Complete");
   }
 };
 

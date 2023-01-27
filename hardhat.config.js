@@ -12,7 +12,7 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY;
 module.exports = {
   defaultNetwork: "hardhat",
   networks: {
-    hardhat: {
+    localhost: {
       chainId: 31337,
       blockConfirmations: 1,
     },
